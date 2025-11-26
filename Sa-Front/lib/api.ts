@@ -158,6 +158,23 @@ export async function getProdutos(): Promise<Produto[]> {
   return apiFetch<Produto[]>("/produtos")
 }
 
+export async function getEstoqueSummary(): Promise<{ totalValue: number; totalQuantity: number }> {
+  const produtos = await getProdutos()
+  let totalValue = 0
+  let totalQuantity = 0
+  for (const p of produtos) {
+    const qtd = p.estoque || 0
+    const price = Number(p.preco) || 0
+    totalQuantity += qtd
+    totalValue += qtd * price
+  }
+  return { totalValue, totalQuantity }
+}
+
+export async function getProduto(id: number): Promise<Produto> {
+  return apiFetch<Produto>(`/produtos/${id}`)
+}
+
 export async function createProduto(p: Omit<Produto, "id">): Promise<Produto> {
   return apiFetch<Produto>("/produtos", { method: "POST", body: p })
 }
@@ -185,6 +202,7 @@ export type Pedido = {
   createdAt: string
   updatedAt: string
   produto?: Produto[]
+  produtosEmPedidos?: { produto: Produto }[]
 }
 
 export async function getPedidos(): Promise<Pedido[]> {
@@ -193,6 +211,10 @@ export async function getPedidos(): Promise<Pedido[]> {
 
 export async function createPedido(body: { valor: string | number; status: string; produtos: number[] }) {
   return apiFetch<Pedido>("/pedidos", { method: "POST", body })
+}
+
+export async function updatePedido(id: number, body: Partial<Pedido>) {
+  return apiFetch<Pedido>(`/pedidos/${id}`, { method: "PUT", body })
 }
 
 export async function refreshPedidoStatus(id: number) {

@@ -12,8 +12,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Export static HTML to `out/` on build so it can be served by Nginx
-  output: 'export',
+  // Usar build standalone para incluir servidor Node e permitir Middleware
+  output: 'standalone',
   turbopack: {
     // Explicitly set root to this app folder to avoid multi-lockfile inference warnings
     root: __dirname,

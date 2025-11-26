@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Clock, Zap, CheckCircle, Filter, RefreshCw } from "lucide-react"
-import { getPedidos, refreshPedidoStatus, type Pedido } from "@/lib/api"
+import { getPedidos, refreshPedidoStatus, getProduto, updateProduto, updatePedido, type Pedido } from "@/lib/api"
 
 type OrderStatus = "pending" | "production" | "completed" | "error"
 
@@ -44,7 +44,9 @@ export function StatusOrders() {
     try {
       setLoading(true)
       const data = await getPedidos()
-      const mapped: Order[] = data.map((p: Pedido) => {
+      const mapped: Order[] = data
+        .filter((p: Pedido) => p.status !== 'ENTREGUE') // Filter out delivered orders
+        .map((p: Pedido) => {
         const pe = (p as any)
         const first = (pe.produto?.[0] || pe.produtosEmPedidos?.[0]?.produto) as any
         const bloco = (first?.bloco || {}) as Record<string, any>
@@ -97,8 +99,24 @@ export function StatusOrders() {
       ? orders.filter((o) => !movedOrders.some((m) => m.id === o.id))
       : orders.filter((order) => order.status === filterStatus && !movedOrders.some((m) => m.id === order.id))
 
-  const handleMoveToEstoque = (order: Order) => {
-    setMovedOrders([...movedOrders, { id: order.id, data: order }])
+  const handleMoveToEstoque = async (order: Order) => {
+    try {
+      setLoading(true)
+      
+      // Update order status to ENTREGUE so it disappears from the list
+      await updatePedido(Number(order.id), { status: 'ENTREGUE' })
+
+      setMovedOrders((prev) => [...prev, { id: order.id, data: order }])
+      setNotice(`Pedido #${order.id} movido para o estoque.`)
+      
+      // Reload to ensure list is up to date
+      await loadFromBackend()
+    } catch (error) {
+      console.error(error)
+      setNotice(`Erro ao mover pedido #${order.id} para o estoque.`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleRefresh = async () => {
@@ -132,8 +150,10 @@ export function StatusOrders() {
       } else {
         setNotice(`Pedido #${order.id}: status permanece ${labelStatus(newStatus)}.`)
       }
+      setTimeout(() => setNotice(""), 5000)
     } catch (e: any) {
       setNotice(`Pedido #${order.id}: ${e?.message || "Falha ao consultar status"}`)
+      setTimeout(() => setNotice(""), 5000)
     } finally {
       setChecking((prev) => {
         const { [order.id]: _omit, ...rest } = prev
@@ -261,18 +281,16 @@ export function StatusOrders() {
 
               {/* Buttons */}
               <div className="flex gap-2 items-center justify-between">
-                <Button onClick={handleRefresh} className="p-2 bg-gray-200 hover:bg-gray-300 text-gray-700" size="sm">
-                  <RefreshCw className="w-4 h-4" />
+                <Button onClick={() => handleCheckOne(order)} className="p-2 bg-gray-200 hover:bg-gray-300 text-gray-700" size="sm" title="Verificar status">
+                  <RefreshCw className={`w-4 h-4 ${checking[order.id] ? 'animate-spin' : ''}`} />
                 </Button>
                 <Button
-                  onClick={() => handleCheckOne(order)}
+                  onClick={() => handleMoveToEstoque(order)}
                   size="sm"
                   className="flex-1 bg-[#ff5722] hover:bg-[#ff5722]/90 text-white text-xs font-medium"
-                  // @ts-ignore
-                  disabled={checking[order.id] || order.status === 'completed' || !order.idfila}
+                  disabled={order.status !== 'completed'}
                 >
-                  {/* @ts-ignore */}
-                  {checking[order.id] ? 'Checando…' : 'Checar status'}
+                  Mover para Estoque
                 </Button>
               </div>
             </Card>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, Fragment } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/ui/button'
 import { getPedidos, refreshPedidoStatus, Pedido } from '@/lib/api'
@@ -86,7 +86,7 @@ export default function PedidosPage() {
             <h2 className="text-lg font-semibold">Meus Pedidos</h2>
             <div className="flex gap-2">
               <select value={filter} onChange={e => setFilter(e.target.value as PedidoFilter)} className="h-9 rounded-md border text-sm px-2">
-                <option value="EM_ANDAMENTO">Em andamento</option>
+                <option >Selecione</option>
                 <option value="TODOS">Todos</option>
                 <option value="PENDENTE">Pendente</option>
                 <option value="EM_PROCESSO">Em processo</option>
@@ -109,7 +109,7 @@ export default function PedidosPage() {
                     <th className="text-left px-2 py-1">Criado</th>
                     <th className="text-left px-2 py-1">Status</th>
                     <th className="text-left px-2 py-1">Valor</th>
-                    <th className="text-left px-2 py-1">Produtos</th>
+                    <th className="text-left px-2 py-1">Produto</th>
                     <th className="text-left px-2 py-1">Fila</th>
                     <th className="text-left px-2 py-1">Ações</th>
                   </tr>
@@ -118,13 +118,19 @@ export default function PedidosPage() {
                   {pedidosFiltrados.map(p => {
                     const created = p.createdAt ? new Date(p.createdAt) : null
                     const valor = p.valor ? parseFloat(String(p.valor)) : 0
-                    const produtosLinha = (p.produto || []).map(pr => `${pr.marca} ${pr.modelo}`).join(', ')
+                    
+                    const listaProdutos = (p.produto && p.produto.length > 0) 
+                      ? p.produto 
+                      : (p.produtosEmPedidos || []).map(pp => pp.produto)
+
+                    const produtosLinha = listaProdutos.map(pr => `${pr.marca} ${pr.modelo}`).join(', ')
                     const st = String(p.status || '').toUpperCase()
                     const isFinalizado = st === 'FINALIZADO'
+                    const isEntregue = st === 'ENTREGUE'
                     const isChecking = !!checking[p.id]
                     return (
-                      <>
-                      <tr key={p.id} className="odd:bg-white even:bg-[#f9f7f6]">
+                      <Fragment key={p.id}>
+                      <tr className="odd:bg-white even:bg-[#f9f7f6]">
                         <td className="px-2 py-1">#{p.id}</td>
                         <td className="px-2 py-1">{created ? created.toLocaleString() : '-'}</td>
                         <td className="px-2 py-1">
@@ -143,7 +149,7 @@ export default function PedidosPage() {
                             size="sm"
                             variant="secondary"
                             onClick={() => checkStatus(p)}
-                            disabled={isChecking || isFinalizado || !p.idfila}
+                            disabled={isChecking || isFinalizado || isEntregue || !p.idfila}
                             className="text-xs h-7"
                           >
                             {isChecking ? 'Checando…' : 'Checar'}
@@ -165,7 +171,7 @@ export default function PedidosPage() {
                           </td>
                         </tr>
                       )}
-                      </>
+                      </Fragment>
                     )
                   })}
                 </tbody>
